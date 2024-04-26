@@ -11,10 +11,7 @@ const bodyParser = require('body-parser'); // Require body-parser
 require('dotenv').config();
 
 app.use(express.json());
-app.use(cors({
-  origin: 'https://main--sicu-aura-bytauheeds.netlify.app/', 
-  credentials: true
-}));
+app.use(cors);
 
 const { mongodurl } = process.env;
 mongoose.connect(mongodurl)
