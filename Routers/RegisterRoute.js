@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const bcrypt = require('bcrypt');
-const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const uniqid = require('uniqid');
@@ -10,24 +9,33 @@ const nodemailer = require('nodemailer');
 const Hospital = require('../Models/Hospital');
 const cloudinary = require('cloudinary').v2;
 
+require('dotenv').config();
+
 cloudinary.config({ 
   cloud_name: 'dffp285mq', 
-  api_key: process.env.APIKEY, 
-  api_secret: process.env.APISECRET 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-require('dotenv').config();
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  if (!allowedTypes.includes(file.mimetype)) {
+    const error = new Error('Only jpeg, jpg, or png are allowed');
+    error.code = 'LIMIT_FILE_TYPES';
+    return cb(error, false);
   }
-});
+  cb(null, true);
+};
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 1024 * 1024 * 5, // 5 MB
+  },
+});
 
 router.post('/registers', upload.single('certificate'), async (req, res) => {
   try {
@@ -56,7 +64,7 @@ router.post('/registers', upload.single('certificate'), async (req, res) => {
     let certificateUrl = null;
 
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
+      const result = await cloudinary.uploader.upload("data:image/jpeg;base64," + req.file.buffer.toString("base64"), {
         folder: 'Certificates'
       });
       certificateUrl = result.secure_url;
